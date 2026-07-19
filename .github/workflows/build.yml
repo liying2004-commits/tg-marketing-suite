@@ -1,0 +1,35 @@
+name: Build Multi-Platform
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pyinstaller telethon cryptg
+      - run: pyinstaller --onedir --name TG_Marketing_Suite --add-data "modules;modules" --hidden-import telethon --hidden-import telethon.network --hidden-import telethon.crypto --hidden-import telethon.extensions --hidden-import cryptg --hidden-import sqlite3 --noconsole app_gui.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TG_Marketing_Suite_Windows
+          path: dist/TG_Marketing_Suite/
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install pyinstaller telethon cryptg
+      - run: pyinstaller --onedir --name TG_Marketing_Suite --add-data "modules:modules" --hidden-import telethon --hidden-import telethon.network --hidden-import telethon.crypto --hidden-import telethon.extensions --hidden-import cryptg --hidden-import sqlite3 --noconsole app_gui.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TG_Marketing_Suite_macOS
+          path: dist/TG_Marketing_Suite/

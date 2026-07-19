@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TG Marketing Suite</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #1a1d23;
+  --panel: #21252b;
+  --border: #2c313a;
+  --text: #c8ccd4;
+  --text-dim: #7f848e;
+  --accent: #4d78cc;
+  --accent-hover: #5f8adf;
+  --green: #5b9b5b;
+  --orange: #d97821;
+  --red: #cc4444;
+  --input-bg: #1a1d23;
+  --sidebar-w: 200px;
+  --log-h: 140px;
+  --font: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --mono: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+}
+
+html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--text); font-size: 13px; overflow: hidden; }
+
+#app { display: grid; grid-template-columns: var(--sidebar-w) 1fr; grid-template-rows: 1fr var(--log-h) 28px; height: 100vh; }
+
+/* Sidebar */
+#sidebar { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; grid-row: 1/4; }
+#sidebar .logo { padding: 16px; font-size: 16px; font-weight: 700; color: #fff; border-bottom: 1px solid var(--border); letter-spacing: 0.5px; }
+#sidebar .logo span { color: var(--accent); }
+#sidebar nav { flex: 1; overflow-y: auto; padding: 8px 0; }
+#sidebar nav a { display: flex; align-items: center; gap: 8px; padding: 10px 16px; color: var(--text-dim); text-decoration: none; cursor: pointer; transition: all 0.15s; border-left: 3px solid transparent; font-size: 13px; }
+#sidebar nav a:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+#sidebar nav a.active { color: #fff; background: rgba(77,120,204,0.15); border-left-color: var(--accent); }
+#sidebar nav a .icon { font-size: 15px; width: 20px; text-align: center; }
+#sidebar .stats { padding: 12px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-dim); }
+#sidebar .stats div { margin: 3px 0; display: flex; justify-content: space-between; }
+#sidebar .stats span { color: var(--accent); }
+
+/* Main */
+#main { display: flex; flex-direction: column; overflow: hidden; }
+.tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; padding: 16px; }
+.tab-content.active { display: flex; }
+
+/* Panel */
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; }
+.panel-header { padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: space-between; }
+.panel-body { padding: 12px 14px; overflow: auto; flex: 1; }
+
+/* Controls */
+input, select, textarea, button { font-family: var(--font); font-size: 13px; }
+input[type="text"], input[type="number"], input[type="password"], select, textarea {
+  background: var(--input-bg); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 10px; border-radius: 3px; outline: none; width: 100%;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 60px; }
+select { cursor: pointer; }
+
+.btn { display: inline-flex; align-items: center; gap: 4px; padding: 7px 16px; border: 1px solid var(--border); border-radius: 3px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; background: var(--panel); color: var(--text); white-space: nowrap; }
+.btn:hover { border-color: var(--accent); color: #fff; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-green { border-color: var(--green); color: var(--green); }
+.btn-green:hover { background: var(--green); color: #fff; }
+.btn-orange { border-color: var(--orange); color: var(--orange); }
+.btn-orange:hover { background: var(--orange); color: #fff; }
+.btn-red { border-color: var(--red); color: var(--red); }
+.btn-red:hover { background: var(--red); color: #fff; }
+
+.form-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.form-row label { min-width: 60px; color: var(--text-dim); font-size: 12px; text-align: right; }
+.form-row > * { flex: 1; }
+.form-row > label { flex: 0 0 60px; }
+.form-row > .btn { flex: 0 0 auto; }
+
+/* Table */
+.table-wrap { overflow: auto; flex: 1; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--bg); color: var(--text-dim); font-weight: 600; font-size: 12px; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1; cursor: pointer; user-select: none; }
+th:hover { color: var(--accent); }
+td { padding: 6px 10px; border-bottom: 1px solid var(--border); font-size: 12px; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+tr.selected td { background: rgba(77,120,204,0.15); }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500; }
+.badge-online { background: rgba(91,155,91,0.2); color: var(--green); }
+.badge-offline { background: rgba(127,132,142,0.2); color: var(--text-dim); }
+.badge-sending { background: rgba(217,120,33,0.2); color: var(--orange); }
+.chk-cell { width: 30px; text-align: center; }
+
+/* Log */
+#log-panel { border-top: 1px solid var(--border); background: #16181d; grid-column: 2; }
+#log-panel .panel-header { padding: 6px 14px; font-size: 12px; }
+#log-content { height: calc(var(--log-h) - 33px); overflow-y: auto; padding: 8px 14px; font-family: var(--mono); font-size: 12px; color: #9da5b4; line-height: 1.6; white-space: pre-wrap; word-break: break-all; }
+
+/* Statusbar */
+#statusbar { background: var(--accent); color: #fff; padding: 0 14px; display: flex; align-items: center; font-size: 12px; grid-column: 2; gap: 20px; }
+#statusbar .dot { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* Dashboard cards */
+.dash-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.dash-card { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 16px; text-align: center; }
+.dash-card .num { font-size: 28px; font-weight: 700; color: #fff; }
+.dash-card .label { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; min-width: 400px; max-width: 600px; max-height: 80vh; overflow: auto; }
+.modal .modal-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+.modal .modal-body { padding: 16px 18px; }
+.modal .modal-footer { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+
+/* Toast */
+#toast { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+.toast-msg { padding: 10px 20px; border-radius: 4px; font-size: 13px; animation: slideIn 0.2s ease; color: #fff; }
+.toast-info { background: var(--accent); }
+.toast-ok { background: var(--green); }
+.toast-err { background: var(--red); }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* Split layout */
+.split-row { display: flex; gap: 12px; flex: 1; overflow: hidden; }
+.split-left { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.split-right { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="logo">TG <span>Marketing</span> Suite</div>
+    <nav>
+      <a data-tab="dashboard" class="active" onclick="switchTab('dashboard')"><span class="icon">&#x25A0;</span> 仪表盘</a>
+      <a data-tab="accounts" onclick="switchTab('accounts')"><span class="icon">&#x25CB;</span> 账号管理</a>
+      <a data-tab="groups-scrape" onclick="switchTab('groups-scrape')"><span class="icon">&#x25CE;</span> 群组采集</a>
+      <a data-tab="groups-manage" onclick="switchTab('groups-manage')"><span class="icon">&#x25C9;</span> 群组管理</a>
+      <a data-tab="members" onclick="switchTab('members')"><span class="icon">&#x25A3;</span> 成员采集</a>
+      <a data-tab="send" onclick="switchTab('send')"><span class="icon">&#x25B7;</span> 消息群发</a>
+      <a data-tab="monitor" onclick="switchTab('monitor')"><span class="icon">&#x25D1;</span> 自动回复</a>
+      <a data-tab="invite" onclick="switchTab('invite')"><span class="icon">&#x25E2;</span> 群组拉人</a>
+      <a data-tab="verify" onclick="switchTab('verify')"><span class="icon">&#x2713;</span> 过验证</a>
+      <a data-tab="profile" onclick="switchTab('profile')"><span class="icon">&#x2699;</span> 账号设置</a>
+    </nav>
+    <div class="stats" id="sidebar-stats">
+      <div>账号 <span id="stat-acc">0</span></div>
+      <div>群组 <span id="stat-grp">0</span></div>
+      <div>成员 <span id="stat-mbr">0</span></div>
+      <div>模板 <span id="stat-tpl">0</span></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div id="main">
+
+    <!-- ============ Dashboard ============ -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="dash-cards" id="dash-cards"></div>
+      <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+        <div class="panel-header">最近日志</div>
+        <div class="panel-body" id="dash-log" style="font-family:var(--mono);font-size:12px;color:var(--text-dim);"></div>
+      </div>
+    </div>
+
+    <!-- ============ Accounts ============ -->
+    <div id="tab-accounts" class="tab-content">
+      <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+        <div class="panel-header">
+          账号列表
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-primary btn-sm" onclick="showAddAccount()">+ 添加账号</button>
+            <button class="btn btn-sm" onclick="refreshAccounts()">刷新</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>手机号</th><th>状态</th><th>代理</th><th>日限额</th><th>今日已发</th><th>操作</th>
+            </tr></thead>
+            <tbody id="accounts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Groups Scrape ============ -->
+    <div id="tab-groups-scrape" class="tab-content">
+      <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+        <div class="panel-header">群组采集</div>
+        <div class="panel-body" style="flex:1;overflow:auto;">
+          <div class="form-row"><label>账号</label><select id="gs-phone"><option value="">-- 选择账号 --</option></select></div>
+          <div class="form-row"><label>上限</label><input type="number" id="gs-limit" value="200" min="10" max="500"></div>
+          <div class="form-row"><label>文件夹</label><input type="text" id="gs-folder" value="default"></div>
+          <button class="btn btn-primary" onclick="scrapeGroups()" style="margin-top:8px;">开始采集群组</button>
+          <div id="gs-result" style="margin-top:10px;font-size:12px;color:var(--text-dim);"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Groups Manage ============ -->
+    <div id="tab-groups-manage" class="tab-content">
+      <div class="split-row">
+        <div class="split-left">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">
+              群组列表
+              <div style="display:flex;gap:6px;">
+                <select id="gm-folder-filter" onchange="loadGroups()" style="width:auto;"><option value="all">全部文件夹</option></select>
+                <input type="text" id="gm-search" placeholder="搜索..." oninput="loadGroups()" style="width:140px;">
+                <button class="btn btn-sm" onclick="loadGroups()">刷新</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table><thead><tr><th class="chk-cell"><input type="checkbox" id="gm-checkall" onchange="checkAllGroups()"></th><th>群名</th><th>Username</th><th>人数</th><th>文件夹</th></tr></thead>
+              <tbody id="groups-tbody"></tbody></table>
+            </div>
+          </div>
+        </div>
+        <div class="split-right">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">操作</div>
+            <div class="panel-body">
+              <div class="form-row"><label>移动到</label><input type="text" id="gm-move-folder" value="default"></div>
+              <button class="btn btn-sm" onclick="moveGroups()">移动选中群组</button>
+              <hr style="border-color:var(--border);margin:12px 0;">
+              <button class="btn btn-sm btn-red" onclick="deleteSelectedGroups()">删除选中群组</button>
+              <hr style="border-color:var(--border);margin:12px 0;">
+              <button class="btn btn-sm" onclick="exportGroups('csv')">导出 CSV</button>
+              <button class="btn btn-sm" onclick="exportGroups('json')" style="margin-left:4px;">导出 JSON</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Members Scrape ============ -->
+    <div id="tab-members" class="tab-content">
+      <div class="split-row">
+        <div class="split-left">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">采集成员</div>
+            <div class="panel-body">
+              <div class="form-row"><label>账号</label><select id="ms-phone"><option value="">-- 选择 --</option></select></div>
+              <div class="form-row"><label>群组</label><select id="ms-group"></select></div>
+              <div class="form-row"><label>上限</label><input type="number" id="ms-limit" value="5000" min="100" max="20000"></div>
+              <button class="btn btn-primary" onclick="scrapeMembers()" style="margin-top:8px;">开始采集成员</button>
+              <div id="ms-result" style="margin-top:10px;font-size:12px;color:var(--text-dim);"></div>
+            </div>
+          </div>
+        </div>
+        <div class="split-right">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">
+              成员列表
+              <div style="display:flex;gap:6px;">
+                <input type="text" id="mb-search" placeholder="搜索..." oninput="loadMembers()" style="width:140px;">
+                <button class="btn btn-sm" onclick="loadMembers()">刷新</button>
+                <button class="btn btn-sm" onclick="exportMembers('csv')">导出</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table><thead><tr><th class="chk-cell"><input type="checkbox" id="mb-checkall" onchange="checkAllMembers()"></th><th>用户名</th><th>昵称</th><th>来源群</th></tr></thead>
+              <tbody id="members-tbody"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Send ============ -->
+    <div id="tab-send" class="tab-content">
+      <div class="split-row">
+        <div class="split-left">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">消息群发</div>
+            <div class="panel-body">
+              <div class="form-row"><label>账号</label><select id="sd-phone"><option value="">-- 选择 --</option></select></div>
+              <div class="form-row"><label>模板</label><select id="sd-template" onchange="loadTemplate()"><option value="">-- 手动输入 --</option></select></div>
+              <div class="form-row"><label>延迟(s)</label><input type="number" id="sd-delay" value="3" min="1" max="60"></div>
+              <div class="form-row"><label>消息</label></div>
+              <textarea id="sd-message" rows="5" placeholder="消息内容... 变量: {username} {first_name}"></textarea>
+              <button class="btn btn-primary" onclick="startSend()" style="margin-top:8px;">发送给已选成员</button>
+              <button class="btn btn-sm" onclick="saveTemplate()" style="margin-top:8px;margin-left:4px;">保存为模板</button>
+              <div id="sd-progress" style="margin-top:10px;font-size:12px;color:var(--text-dim);"></div>
+            </div>
+          </div>
+        </div>
+        <div class="split-right">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">
+              私信单发
+            </div>
+            <div class="panel-body">
+              <div class="form-row"><label>账号</label><select id="pm-phone"><option value="">-- 选择 --</option></select></div>
+              <div class="form-row"><label>目标</label><input type="text" id="pm-target" placeholder="@username 或 user_id"></div>
+              <div class="form-row"><label>消息</label></div>
+              <textarea id="pm-message" rows="3" placeholder="消息内容..."></textarea>
+              <button class="btn btn-primary" onclick="sendSingle()" style="margin-top:8px;">发送私信</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Monitor ============ -->
+    <div id="tab-monitor" class="tab-content">
+      <div class="split-row">
+        <div class="split-left">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">关键词管理</div>
+            <div class="panel-body" id="monitor-keywords-form">
+              <div class="form-row"><label>关键词</label><input type="text" id="mk-keyword" placeholder="多个用逗号分隔, 如: 你好,hi,hello"></div>
+              <div class="form-row"><label>回复</label><textarea id="mk-reply" rows="3" placeholder="自动回复内容..."></textarea></div>
+              <div class="form-row"><label>账号</label><select id="mk-phone"><option value="">-- 选择 --</option></select></div>
+              <div class="form-row"><label>监听群</label><input type="text" id="mk-groups" placeholder="群username, 逗号分隔, 空=全部"></div>
+              <button class="btn btn-primary btn-sm" onclick="addKeyword()">添加关键词</button>
+            </div>
+          </div>
+        </div>
+        <div class="split-right">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">关键词列表</div>
+            <div class="table-wrap">
+              <table><thead><tr><th>关键词</th><th>回复</th><th>账号</th><th>状态</th><th>操作</th></tr></thead>
+              <tbody id="keywords-tbody"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Invite ============ -->
+    <div id="tab-invite" class="tab-content">
+      <div class="split-row">
+        <div class="split-left">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">选择成员</div>
+            <div class="panel-body">
+              <div class="form-row"><label>筛选群</label><select id="iv-group-filter" onchange="loadMembersForInvite()"><option value="">全部</option></select></div>
+              <div class="form-row"><label>仅可邀请</label><input type="checkbox" id="iv-can-invite-only" onchange="loadMembersForInvite()" checked></div>
+            </div>
+            <div class="table-wrap">
+              <table><thead><tr><th class="chk-cell"><input type="checkbox" id="iv-checkall" onchange="checkAllInvite()"></th><th>用户名</th><th>昵称</th><th>来源</th></tr></thead>
+              <tbody id="invite-members-tbody"></tbody></table>
+            </div>
+          </div>
+        </div>
+        <div class="split-right">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">拉人操作</div>
+            <div class="panel-body">
+              <div class="form-row"><label>使用账号</label><select id="iv-phone"><option value="">-- 选择 --</option></select></div>
+              <div class="form-row"><label>目标群</label><select id="iv-target-group"></select></div>
+              <div class="form-row"><label>选中人数</label><span id="iv-selected-count" style="color:var(--accent);font-weight:700;">0</span></div>
+              <button class="btn btn-primary" onclick="startInvite()">开始拉人</button>
+              <div id="iv-result" style="margin-top:10px;font-size:12px;color:var(--text-dim);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Verify ============ -->
+    <div id="tab-verify" class="tab-content">
+      <div class="split-row">
+        <div class="split-left">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">验证机器人配置</div>
+            <div class="panel-body">
+              <div class="form-row"><label>Bot用户名</label><input type="text" id="vf-bot" placeholder="@WatchDoorBot"></div>
+              <div class="form-row"><label>匹配模式</label><input type="text" id="vf-pattern" placeholder="问题中包含的文字, 可选"></div>
+              <div class="form-row"><label>答案</label><input type="text" id="vf-answer" placeholder="要回复的答案"></div>
+              <button class="btn btn-primary btn-sm" onclick="addVerifyConfig()">添加配置</button>
+            </div>
+          </div>
+        </div>
+        <div class="split-right">
+          <div class="panel" style="flex:1;display:flex;flex-direction:column;">
+            <div class="panel-header">执行验证</div>
+            <div class="panel-body">
+              <div class="form-row"><label>账号</label><select id="vf-phone"><option value="">-- 选择 --</option></select></div>
+              <div class="form-row"><label>配置</label><select id="vf-config"></select></div>
+              <button class="btn btn-primary" onclick="runVerify()">执行验证</button>
+            </div>
+            <div class="panel-header" style="border-top:1px solid var(--border);">已有配置</div>
+            <div class="table-wrap">
+              <table><thead><tr><th>Bot</th><th>匹配</th><th>答案</th><th>操作</th></tr></thead>
+              <tbody id="verify-tbody"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Profile ============ -->
+    <div id="tab-profile" class="tab-content">
+      <div class="panel" style="flex:1;display:flex;flex-direction:column;max-width:600px;">
+        <div class="panel-header">批量设置账号信息</div>
+        <div class="panel-body">
+          <div class="form-row"><label>账号</label><select id="pf-phone"><option value="">-- 选择 --</option></select></div>
+          <div class="form-row"><label>First Name</label><input type="text" id="pf-first-name"></div>
+          <div class="form-row"><label>Last Name</label><input type="text" id="pf-last-name"></div>
+          <div class="form-row"><label>Bio</label><textarea id="pf-bio" rows="2" placeholder="个人简介..."></textarea></div>
+          <div class="form-row"><label>Username</label><input type="text" id="pf-username" placeholder="不填则不修改"></div>
+          <div class="form-row"><label>头像</label><input type="text" id="pf-avatar" placeholder="本地图片路径, 不填则不修改"></div>
+          <button class="btn btn-primary" onclick="updateProfile()">更新资料</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Log -->
+  <div id="log-panel">
+    <div class="panel-header">
+      日志
+      <button class="btn btn-sm" onclick="clearLogs()" style="font-size:11px;padding:2px 8px;">清空</button>
+    </div>
+    <div id="log-content"></div>
+  </div>
+
+  <!-- Statusbar -->
+  <div id="statusbar">
+    <div class="dot"></div>
+    <span id="status-text">就绪</span>
+    <span style="margin-left:auto;" id="status-progress"></span>
+  </div>
+</div>
+
+<!-- Add Account Modal -->
+<div class="modal-overlay" id="modal-add-account">
+  <div class="modal">
+    <div class="modal-header">添加账号 <button class="btn btn-sm" onclick="closeModal('modal-add-account')">X</button></div>
+    <div class="modal-body">
+      <div class="form-row"><label>手机号</label><input type="text" id="add-phone" placeholder="+8613800000000"></div>
+      <div class="form-row"><label>API ID</label><input type="text" id="add-api-id" value="2040"></div>
+      <div class="form-row"><label>API Hash</label><input type="text" id="add-api-hash" value="b18441a1ff607e10a989891a5462e627"></div>
+      <div class="form-row"><label>代理类型</label><select id="add-proxy-type"><option>socks5</option><option>http</option></select></div>
+      <div class="form-row"><label>代理地址</label><input type="text" id="add-proxy-host" value="127.0.0.1"></div>
+      <div class="form-row"><label>代理端口</label><input type="text" id="add-proxy-port" value="10808"></div>
+      <div class="form-row"><label>日限额</label><input type="number" id="add-daily-limit" value="50" min="1"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-add-account')">取消</button>
+      <button class="btn btn-primary" onclick="addAccount()">确定添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- Login Modal -->
+<div class="modal-overlay" id="modal-login">
+  <div class="modal">
+    <div class="modal-header">登录验证 <button class="btn btn-sm" onclick="closeModal('modal-login')">X</button></div>
+    <div class="modal-body">
+      <div id="login-step1">
+        <button class="btn btn-primary" onclick="sendCode()">发送验证码</button>
+      </div>
+      <div id="login-step2" style="display:none;">
+        <div class="form-row"><label>验证码</label><input type="text" id="login-code" placeholder="收到的验证码"></div>
+        <div class="form-row"><label>2FA密码</label><input type="text" id="login-password" placeholder="有两步验证才填"></div>
+        <button class="btn btn-primary" onclick="verifyLogin()">登录</button>
+      </div>
+      <div id="login-msg" style="margin-top:8px;font-size:12px;"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ==================== Globals ====================
+const API = (path, opts) => fetch('/api' + path, opts).then(r => r.json());
+let activeTab = 'dashboard';
+let _loginPhone = '';
+let _loginHash = '';
+let _groupsCache = [];
+let _membersCache = [];
+let _keywordsCache = [];
+
+// ==================== Init ====================
+document.addEventListener('DOMContentLoaded', () => {
+  connectWS();
+  refreshStats();
+  refreshAccounts();
+  loadGroups();
+  loadMembers();
+  loadKeywords();
+  loadVerifyConfigs();
+  loadAllSelects();
+  setInterval(refreshStats, 15000);
+  setInterval(refreshAccounts, 30000);
+});
+
+// ==================== WebSocket ====================
+let _wsRetry = 0;
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(proto + '//' + location.host + '/ws/logs');
+  ws.onmessage = e => {
+    if (e.data === '__ping__') return;
+    const el = document.getElementById('log-content');
+    el.textContent += e.data + '\n';
+    el.scrollTop = el.scrollHeight;
+    // Also update dash log
+    const dl = document.getElementById('dash-log');
+    if (dl) {
+      const lines = dl.textContent.split('\n');
+      lines.push(e.data);
+      if (lines.length > 20) lines.shift();
+      dl.textContent = lines.join('\n');
+      dl.scrollTop = dl.scrollHeight;
+    }
+  };
+  ws.onclose = () => { _wsRetry++; setTimeout(connectWS, Math.min(30000, 1000 * _wsRetry)); };
+  ws.onerror = () => ws.close();
+}
+
+// ==================== Tabs ====================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+  activeTab = tab;
+  if (tab === 'groups-manage') { loadGroups(); loadFolders(); }
+  if (tab === 'members') { loadMembers(); loadAllSelects(); }
+  if (tab === 'invite') { loadMembersForInvite(); loadAllSelects(); loadGroupsForInvite(); }
+  if (tab === 'verify') { loadVerifyConfigs(); loadAllSelects(); }
+  if (tab === 'send') loadAllSelects();
+  if (tab === 'monitor') { loadKeywords(); loadAllSelects(); }
+  if (tab === 'profile') loadAllSelects();
+  if (tab === 'accounts') refreshAccounts();
+}
+
+// ==================== Toast ====================
+function toast(msg, type) {
+  type = type || 'info';
+  const el = document.getElementById('toast');
+  const div = document.createElement('div');
+  div.className = 'toast-msg toast-' + type;
+  div.textContent = msg;
+  el.appendChild(div);
+  setTimeout(() => div.remove(), 3000);
+}
+
+// ==================== Modal ====================
+function showModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ==================== Stats ====================
+function refreshStats() {
+  API('/stats').then(data => {
+    document.getElementById('stat-acc').textContent = data.accounts;
+    document.getElementById('stat-grp').textContent = data.groups;
+    document.getElementById('stat-mbr').textContent = data.members;
+    document.getElementById('stat-tpl').textContent = data.templates;
+    // Dashboard cards
+    const dc = document.getElementById('dash-cards');
+    if (dc) {
+      dc.innerHTML = [
+        {label:'账号', num:data.accounts || 0, color:'var(--accent)'},
+        {label:'群组', num:data.groups || 0, color:'var(--green)'},
+        {label:'成员', num:data.members || 0, color:'var(--orange)'},
+        {label:'模板', num:data.templates || 0, color:'var(--text-dim)'},
+      ].map(c => `<div class="dash-card"><div class="num" style="color:${c.color}">${c.num}</div><div class="label">${c.label}</div></div>`).join('');
+    }
+  });
+}
+
+// ==================== Select helpers ====================
+function loadAllSelects() {
+  API('/accounts').then(accs => {
+    const selIds = ['gs-phone','ms-phone','sd-phone','pm-phone','mk-phone','iv-phone','vf-phone','pf-phone'];
+    selIds.forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      const val = sel.value;
+      sel.innerHTML = '<option value="">-- 选择账号 --</option>' +
+        accs.map(a => `<option value="${a.phone}" ${a.phone===val?'selected':''}>${a.phone} (${a.live_status})</option>`).join('');
+    });
+  });
+
+  // Groups select for member scrape
+  const msGroup = document.getElementById('ms-group');
+  if (msGroup) {
+    API('/groups').then(grps => {
+      msGroup.innerHTML = '<option value="">-- 选择群组 --</option>' +
+        grps.map(g => `<option value="${g.tg_id}" data-hash="${g.access_hash||''}" data-title="${g.title}">${g.title} (${g.participants}人)</option>`).join('');
+    });
+  }
+
+  // Groups select for verify config
+  const vfConfig = document.getElementById('vf-config');
+  if (vfConfig) {
+    API('/verify/configs').then(cfgs => {
+      vfConfig.innerHTML = '<option value="">-- 选择验证配置 --</option>' +
+        cfgs.map(c => `<option value="${c.id}">${c.bot_username} -> ${c.answer}</option>`).join('');
+    });
+  }
+
+  // Groups for invite target
+  const ivGroup = document.getElementById('iv-target-group');
+  if (ivGroup) {
+    API('/groups').then(grps => {
+      ivGroup.innerHTML = '<option value="">-- 选择目标群 --</option>' +
+        grps.map(g => `<option value="${g.tg_id}">${g.title} (${g.participants}人)</option>`).join('');
+    });
+  }
+
+  // Invite filter
+  const ivFilter = document.getElementById('iv-group-filter');
+  if (ivFilter) {
+    API('/groups').then(grps => {
+      ivFilter.innerHTML = '<option value="">全部群组</option>' +
+        grps.map(g => `<option value="${g.tg_id}">${g.title}</option>`).join('');
+    });
+  }
+}
+
+// ==================== Accounts ====================
+function refreshAccounts() {
+  API('/accounts').then(accs => {
+    const tbody = document.getElementById('accounts-tbody');
+    tbody.innerHTML = accs.map(a => `
+      <tr>
+        <td>${a.phone}</td>
+        <td><span class="badge badge-${a.live_status==='online'?'online':'offline'}">${a.live_status}</span></td>
+        <td>${a.proxy_type}://${a.proxy_host}:${a.proxy_port}</td>
+        <td>${a.daily_limit}</td>
+        <td>${a.sent_today}</td>
+        <td>
+          ${a.live_status !== 'online' ? `<button class="btn btn-sm btn-green" onclick="showLogin('${a.phone}')">登录</button>` : ''}
+          <button class="btn btn-sm btn-orange" onclick="logoutAccount('${a.phone}')">登出</button>
+          <button class="btn btn-sm btn-red" onclick="deleteAccount('${a.phone}')">删除</button>
+        </td>
+      </tr>`).join('');
+    loadAllSelects();
+  });
+}
+
+function showAddAccount() { showModal('modal-add-account'); }
+
+function addAccount() {
+  const data = {
+    phone: document.getElementById('add-phone').value.trim(),
+    api_id: document.getElementById('add-api-id').value.trim(),
+    api_hash: document.getElementById('add-api-hash').value.trim(),
+    proxy_type: document.getElementById('add-proxy-type').value,
+    proxy_host: document.getElementById('add-proxy-host').value.trim(),
+    proxy_port: document.getElementById('add-proxy-port').value.trim(),
+    daily_limit: parseInt(document.getElementById('add-daily-limit').value) || 50
+  };
+  if (!data.phone) return toast('请输入手机号', 'err');
+
+  API('/accounts', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast('账号已添加', 'ok');
+      closeModal('modal-add-account');
+      refreshAccounts();
+    });
+}
+
+function showLogin(phone) {
+  _loginPhone = phone;
+  showModal('modal-login');
+  document.getElementById('login-step1').style.display = 'block';
+  document.getElementById('login-step2').style.display = 'none';
+  document.getElementById('login-msg').textContent = '';
+}
+
+function sendCode() {
+  document.getElementById('login-msg').textContent = '发送中...';
+  API('/accounts/' + _loginPhone + '/send_code', {method:'POST'})
+    .then(r => {
+      if (r.error) { document.getElementById('login-msg').textContent = r.error; return; }
+      if (r.authorized) {
+        toast('已授权, 无需登录', 'ok');
+        closeModal('modal-login');
+        refreshAccounts();
+        return;
+      }
+      _loginHash = r.phone_code_hash;
+      document.getElementById('login-step1').style.display = 'none';
+      document.getElementById('login-step2').style.display = 'block';
+      document.getElementById('login-msg').textContent = '验证码已发送';
+    });
+}
+
+function verifyLogin() {
+  const code = document.getElementById('login-code').value.trim();
+  const password = document.getElementById('login-password').value.trim();
+  if (!code) return toast('请输入验证码', 'err');
+  document.getElementById('login-msg').textContent = '验证中...';
+  API('/accounts/' + _loginPhone + '/verify', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({code, phone_code_hash: _loginHash, password: password || undefined})
+  }).then(r => {
+    if (r.error) { document.getElementById('login-msg').textContent = r.error; return; }
+    toast('登录成功', 'ok');
+    closeModal('modal-login');
+    refreshAccounts();
+  });
+}
+
+function logoutAccount(phone) {
+  if (!confirm('确定登出 ' + phone + ' 吗?')) return;
+  API('/accounts/' + phone + '/logout', {method:'POST'}).then(() => refreshAccounts());
+}
+
+function deleteAccount(phone) {
+  if (!confirm('确定删除 ' + phone + ' 及其所有数据吗?')) return;
+  API('/accounts/' + phone, {method:'DELETE'}).then(() => refreshAccounts());
+}
+
+// ==================== Groups Scrape ====================
+function scrapeGroups() {
+  const phone = document.getElementById('gs-phone').value;
+  if (!phone) return toast('请选择账号', 'err');
+  const data = {
+    phone,
+    limit: parseInt(document.getElementById('gs-limit').value) || 200,
+    folder: document.getElementById('gs-folder').value.trim() || 'default'
+  };
+  document.getElementById('gs-result').textContent = '正在采集...';
+  API('/groups/scrape', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      document.getElementById('gs-result').textContent = `采集完成! 共扫描 ${r.total} 个对话, 新增 ${r.added} 个群组`;
+      toast(`新增 ${r.added} 个群组`, 'ok');
+      loadGroups();
+    });
+}
+
+// ==================== Groups Manage ====================
+function loadGroups() {
+  const folder = document.getElementById('gm-folder-filter')?.value || 'all';
+  const search = document.getElementById('gm-search')?.value || '';
+  let url = '/groups?';
+  if (folder !== 'all') url += 'folder=' + encodeURIComponent(folder) + '&';
+  if (search) url += 'search=' + encodeURIComponent(search) + '&';
+
+  API(url).then(grps => {
+    _groupsCache = grps;
+    const tbody = document.getElementById('groups-tbody');
+    tbody.innerHTML = grps.map((g,i) => `
+      <tr data-idx="${i}" data-id="${g.id}" data-tgid="${g.tg_id}" class="clickable">
+        <td class="chk-cell"><input type="checkbox" class="gm-chk" data-id="${g.id}"></td>
+        <td>${g.title || '(无名称)'}</td>
+        <td>${g.username || '-'}</td>
+        <td>${g.participants}</td>
+        <td>${g.folder}</td>
+      </tr>`).join('');
+    // Click row selects checkbox
+    tbody.querySelectorAll('tr.clickable').forEach(tr => {
+      tr.addEventListener('click', function(e) {
+        if (e.target.tagName === 'INPUT') return;
+        const cb = this.querySelector('.gm-chk');
+        cb.checked = !cb.checked;
+        if (cb.checked) this.classList.add('selected');
+        else this.classList.remove('selected');
+      });
+    });
+  });
+}
+
+function loadFolders() {
+  API('/groups/folders').then(folders => {
+    const sel = document.getElementById('gm-folder-filter');
+    if (sel) {
+      sel.innerHTML = '<option value="all">全部文件夹</option>' +
+        folders.map(f => `<option value="${f}">${f}</option>`).join('');
+    }
+  });
+}
+
+function checkAllGroups() {
+  const checked = document.getElementById('gm-checkall').checked;
+  document.querySelectorAll('.gm-chk').forEach(cb => {
+    cb.checked = checked;
+    if (checked) cb.closest('tr').classList.add('selected');
+    else cb.closest('tr').classList.remove('selected');
+  });
+}
+
+function getSelectedGroupIds() {
+  return [...document.querySelectorAll('.gm-chk:checked')].map(cb => parseInt(cb.dataset.id));
+}
+
+function moveGroups() {
+  const ids = getSelectedGroupIds();
+  if (!ids.length) return toast('请选择群组', 'err');
+  const folder = document.getElementById('gm-move-folder').value.trim() || 'default';
+  API('/groups/move', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ids, folder})})
+    .then(r => { toast(`已移动 ${r.moved} 个群组到 "${folder}"`, 'ok'); loadGroups(); loadFolders(); });
+}
+
+function deleteSelectedGroups() {
+  const ids = getSelectedGroupIds();
+  if (!ids.length) return toast('请选择群组', 'err');
+  if (!confirm(`确定删除 ${ids.length} 个群组吗?`)) return;
+  Promise.all(ids.map(id => API('/groups/' + id, {method:'DELETE'}))).then(() => {
+    toast('已删除', 'ok'); loadGroups();
+  });
+}
+
+function exportGroups(fmt) {
+  window.open('/api/export/groups?format=' + fmt, '_blank');
+}
+
+// ==================== Members Scrape ====================
+function scrapeMembers() {
+  const phone = document.getElementById('ms-phone').value;
+  const groupSel = document.getElementById('ms-group');
+  const groupTgId = groupSel.value;
+  const groupTitle = groupSel.selectedOptions[0]?.dataset?.title || '';
+  const accessHash = groupSel.selectedOptions[0]?.dataset?.hash || '';
+  const limit = parseInt(document.getElementById('ms-limit').value) || 5000;
+
+  if (!phone) return toast('请选择账号', 'err');
+  if (!groupTgId) return toast('请选择群组', 'err');
+
+  document.getElementById('ms-result').textContent = '采集任务已启动, 查看日志...';
+  API('/members/scrape', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({phone, group_tg_id: parseInt(groupTgId), group_title: groupTitle, access_hash: accessHash, limit})
+  }).then(r => {
+    if (r.error) { toast(r.error, 'err'); return; }
+    toast('采集已启动', 'ok');
+  });
+}
+
+function loadMembers() {
+  const search = document.getElementById('mb-search')?.value || '';
+  let url = '/members?limit=500';
+  if (search) url += '&search=' + encodeURIComponent(search);
+
+  API(url).then(mbrs => {
+    _membersCache = mbrs;
+    const tbody = document.getElementById('members-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = mbrs.map((m,i) => `
+      <tr data-idx="${i}" data-id="${m.id}" class="clickable">
+        <td class="chk-cell"><input type="checkbox" class="mb-chk" data-id="${m.id}"></td>
+        <td>${m.username || '-'}</td>
+        <td>${m.first_name || ''} ${m.last_name || ''}</td>
+        <td>${m.source_group_title || m.source_group_id}</td>
+      </tr>`).join('');
+    tbody.querySelectorAll('tr.clickable').forEach(tr => {
+      tr.addEventListener('click', function(e) {
+        if (e.target.tagName === 'INPUT') return;
+        const cb = this.querySelector('.mb-chk');
+        cb.checked = !cb.checked;
+        if (cb.checked) this.classList.add('selected');
+        else this.classList.remove('selected');
+      });
+    });
+  });
+}
+
+function checkAllMembers() {
+  const checked = document.getElementById('mb-checkall').checked;
+  document.querySelectorAll('.mb-chk').forEach(cb => {
+    cb.checked = checked;
+    if (checked) cb.closest('tr')?.classList.add('selected');
+    else cb.closest('tr')?.classList.remove('selected');
+  });
+}
+
+function getSelectedMemberIds() {
+  return [...document.querySelectorAll('.mb-chk:checked')].map(cb => parseInt(cb.dataset.id));
+}
+
+function exportMembers(fmt) {
+  window.open('/api/export/members?format=' + (fmt || 'csv'), '_blank');
+}
+
+// ==================== Send ====================
+function loadTemplate() {
+  const tid = document.getElementById('sd-template').value;
+  if (!tid) return;
+  API('/templates').then(tpls => {
+    const tpl = tpls.find(t => t.id == tid);
+    if (tpl) document.getElementById('sd-message').value = tpl.content;
+  });
+}
+
+function saveTemplate() {
+  const name = prompt('模板名称:');
+  if (!name) return;
+  const content = document.getElementById('sd-message').value.trim();
+  if (!content) return toast('消息内容不能为空', 'err');
+  API('/templates', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name, content})})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast('模板已保存', 'ok');
+      refreshTemplates();
+    });
+}
+
+function refreshTemplates() {
+  API('/templates').then(tpls => {
+    const sel = document.getElementById('sd-template');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- 手动输入 --</option>' +
+        tpls.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
+  });
+}
+
+function startSend() {
+  const phone = document.getElementById('sd-phone').value;
+  const message = document.getElementById('sd-message').value.trim();
+  const delay = parseInt(document.getElementById('sd-delay').value) || 3;
+  const memberIds = getSelectedMemberIds();
+
+  if (!phone) return toast('请选择账号', 'err');
+  if (!message) return toast('消息不能为空', 'err');
+
+  const data = {phone, message, delay, member_ids: memberIds};
+
+  document.getElementById('sd-progress').textContent = '发送任务已启动, 查看日志...';
+  API('/send', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast(`开始发送, 目标 ${r.total} 人`, 'ok');
+      document.getElementById('sd-progress').textContent = `目标: ${r.total} 人, 请在日志中查看进度`;
+    });
+}
+
+function sendSingle() {
+  const phone = document.getElementById('pm-phone').value;
+  const target = document.getElementById('pm-target').value.trim();
+  const message = document.getElementById('pm-message').value.trim();
+
+  if (!phone || !target || !message) return toast('请填写完整信息', 'err');
+
+  API('/send/single', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({phone, target, message})})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast('已发送', 'ok');
+    });
+}
+
+// ==================== Monitor ====================
+function loadKeywords() {
+  API('/monitor/keywords').then(kws => {
+    _keywordsCache = kws;
+    const tbody = document.getElementById('keywords-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = kws.map(k => `
+      <tr>
+        <td>${k.keyword}</td>
+        <td>${k.reply_text.substring(0, 50)}${k.reply_text.length>50?'...':''}</td>
+        <td>${k.account_phone || '-'}</td>
+        <td><span class="badge badge-${k.enabled?'online':'offline'}">${k.enabled?'运行中':'已停止'}</span></td>
+        <td>
+          ${k.enabled ?
+            `<button class="btn btn-sm btn-orange" onclick="stopMonitor(${k.id})">停止</button>` :
+            `<button class="btn btn-sm btn-green" onclick="startMonitor(${k.id})">启动</button>`}
+          <button class="btn btn-sm btn-red" onclick="deleteKeyword(${k.id})">删除</button>
+        </td>
+      </tr>`).join('');
+  });
+}
+
+function addKeyword() {
+  const data = {
+    keyword: document.getElementById('mk-keyword').value.trim(),
+    reply_text: document.getElementById('mk-reply').value.trim(),
+    account_phone: document.getElementById('mk-phone').value,
+    group_usernames: document.getElementById('mk-groups').value.trim(),
+    enabled: 1
+  };
+  if (!data.keyword || !data.reply_text) return toast('关键词和回复不能为空', 'err');
+  API('/monitor/keywords', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast('关键词已添加', 'ok');
+      loadKeywords();
+    });
+}
+
+function startMonitor(kid) {
+  API('/monitor/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({keyword_id: kid})})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast('监听已启动', 'ok');
+      loadKeywords();
+    });
+}
+
+function stopMonitor(kid) {
+  API('/monitor/stop', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({keyword_id: kid})})
+    .then(r => { toast('监听已停止', 'ok'); loadKeywords(); });
+}
+
+function deleteKeyword(kid) {
+  if (!confirm('确定删除?')) return;
+  API('/monitor/keywords/' + kid, {method:'DELETE'}).then(() => loadKeywords());
+}
+
+// ==================== Invite ====================
+function loadMembersForInvite() {
+  const groupFilter = document.getElementById('iv-group-filter')?.value || '';
+  const canInviteOnly = document.getElementById('iv-can-invite-only')?.checked || false;
+  let url = '/members?limit=500';
+  if (groupFilter) url += '&group_id=' + groupFilter;
+  if (canInviteOnly) url += '&can_invite=1';
+
+  API(url).then(mbrs => {
+    _membersCache = mbrs;
+    const tbody = document.getElementById('invite-members-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = mbrs.map((m,i) => `
+      <tr data-idx="${i}" data-id="${m.id}" class="clickable">
+        <td class="chk-cell"><input type="checkbox" class="iv-chk" data-id="${m.id}"></td>
+        <td>${m.username || '-'}</td>
+        <td>${m.first_name || ''} ${m.last_name || ''}</td>
+        <td>${m.source_group_title || m.source_group_id}</td>
+      </tr>`).join('');
+    tbody.querySelectorAll('tr.clickable').forEach(tr => {
+      tr.addEventListener('click', function(e) {
+        if (e.target.tagName === 'INPUT') return;
+        const cb = this.querySelector('.iv-chk');
+        cb.checked = !cb.checked;
+        if (cb.checked) this.classList.add('selected');
+        else this.classList.remove('selected');
+        updateInviteCount();
+      });
+    });
+    updateInviteCount();
+  });
+}
+
+function checkAllInvite() {
+  const checked = document.getElementById('iv-checkall').checked;
+  document.querySelectorAll('.iv-chk').forEach(cb => {
+    cb.checked = checked;
+    if (checked) cb.closest('tr')?.classList.add('selected');
+    else cb.closest('tr')?.classList.remove('selected');
+  });
+  updateInviteCount();
+}
+
+function getSelectedInviteIds() {
+  return [...document.querySelectorAll('.iv-chk:checked')].map(cb => parseInt(cb.dataset.id));
+}
+
+function updateInviteCount() {
+  const el = document.getElementById('iv-selected-count');
+  if (el) el.textContent = getSelectedInviteIds().length;
+}
+
+function loadGroupsForInvite() {
+  API('/groups').then(grps => {
+    const sel = document.getElementById('iv-target-group');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- 选择目标群 --</option>' +
+        grps.map(g => `<option value="${g.tg_id}">${g.title} (${g.participants}人)</option>`).join('');
+    }
+  });
+}
+
+function startInvite() {
+  const phone = document.getElementById('iv-phone').value;
+  const groupTgId = document.getElementById('iv-target-group').value;
+  const memberIds = getSelectedInviteIds();
+
+  if (!phone) return toast('请选择账号', 'err');
+  if (!groupTgId) return toast('请选择目标群', 'err');
+  if (!memberIds.length) return toast('请选择要邀请的成员', 'err');
+  if (!confirm(`确定要邀请 ${memberIds.length} 人到群组吗?`)) return;
+
+  document.getElementById('iv-result').textContent = '拉人任务已启动, 查看日志...';
+  API('/invite', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({phone, group_tg_id: parseInt(groupTgId), member_ids: memberIds})})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast(`开始拉人, 目标 ${r.total} 人`, 'ok');
+    });
+}
+
+// ==================== Verify ====================
+function loadVerifyConfigs() {
+  API('/verify/configs').then(cfgs => {
+    const tbody = document.getElementById('verify-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = cfgs.map(c => `
+      <tr>
+        <td>${c.bot_username}</td>
+        <td>${c.question_pattern || '-'}</td>
+        <td>${c.answer}</td>
+        <td><button class="btn btn-sm btn-red" onclick="deleteVerifyConfig(${c.id})">删除</button></td>
+      </tr>`).join('');
+    // Update select
+    const sel = document.getElementById('vf-config');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- 选择验证配置 --</option>' +
+        cfgs.map(c => `<option value="${c.id}">${c.bot_username} -> ${c.answer}</option>`).join('');
+    }
+  });
+}
+
+function addVerifyConfig() {
+  const data = {
+    bot_username: document.getElementById('vf-bot').value.trim(),
+    question_pattern: document.getElementById('vf-pattern').value.trim(),
+    answer: document.getElementById('vf-answer').value.trim()
+  };
+  if (!data.bot_username || !data.answer) return toast('Bot用户名和答案不能为空', 'err');
+  API('/verify/configs', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast('验证配置已添加', 'ok');
+      loadVerifyConfigs();
+    });
+}
+
+function deleteVerifyConfig(vid) {
+  if (!confirm('确定删除?')) return;
+  API('/verify/configs/' + vid, {method:'DELETE'}).then(() => loadVerifyConfigs());
+}
+
+function runVerify() {
+  const phone = document.getElementById('vf-phone').value;
+  const configId = parseInt(document.getElementById('vf-config').value);
+  if (!phone || !configId) return toast('请选择账号和配置', 'err');
+
+  API('/verify/configs').then(cfgs => {
+    const cfg = cfgs.find(c => c.id === configId);
+    if (!cfg) return toast('配置不存在', 'err');
+    API('/verify/run', {method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({phone, bot_username: cfg.bot_username, answer: cfg.answer})
+    }).then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast(r.success ? '验证已执行' : '验证失败', r.success ? 'ok' : 'err');
+    });
+  });
+}
+
+// ==================== Profile ====================
+function updateProfile() {
+  const phone = document.getElementById('pf-phone').value;
+  if (!phone) return toast('请选择账号', 'err');
+
+  const data = {
+    first_name: document.getElementById('pf-first-name').value.trim(),
+    last_name: document.getElementById('pf-last-name').value.trim(),
+    bio: document.getElementById('pf-bio').value.trim(),
+    username: document.getElementById('pf-username').value.trim(),
+    avatar_path: document.getElementById('pf-avatar').value.trim()
+  };
+  // Remove empty fields
+  Object.keys(data).forEach(k => { if (!data[k]) delete data[k]; });
+
+  API('/accounts/' + phone + '/profile', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)})
+    .then(r => {
+      if (r.error) { toast(r.error, 'err'); return; }
+      toast('资料更新完成', 'ok');
+    });
+}
+
+// ==================== Log ====================
+function clearLogs() {
+  API('/logs/clear', {method:'POST'});
+  document.getElementById('log-content').textContent = '';
+  document.getElementById('dash-log').textContent = '';
+}
+
+// ==================== Global refresh on tab activation ====================
+// Preload templates for send tab
+API('/templates').then(() => refreshTemplates());
+</script>
+
+</body>
+</html>

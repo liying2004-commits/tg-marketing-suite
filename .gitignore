@@ -1,0 +1,8 @@
+data/
+sessions/
+__pycache__/
+*.pyc
+build/
+dist/
+*.spec
+*.db
