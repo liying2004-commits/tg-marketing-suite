@@ -726,67 +726,85 @@ class App:
         f = ttk.Frame(self.nb, padding=8)
         self.nb.add(f, text="消息群发")
 
-        left = ttk.Frame(f)
-        left.pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        # Top: control bar
+        ctrl = ttk.Frame(f)
+        ctrl.pack(fill=tk.X, pady=(0,5))
 
-        ttk.Label(left, text="选择账号:").pack(anchor='w')
-        self.sd_phone = ttk.Combobox(left, state='readonly', width=22)
-        self.sd_phone.pack(pady=2)
+        ttk.Label(ctrl, text="账号:").pack(side=tk.LEFT)
+        self.sd_phone = ttk.Combobox(ctrl, state='readonly', width=18)
+        self.sd_phone.pack(side=tk.LEFT, padx=3)
 
-        ttk.Label(left, text="模板:").pack(anchor='w', pady=(5,0))
-        self.sd_template = ttk.Combobox(left, state='readonly', width=22)
-        self.sd_template.pack(pady=2)
+        ttk.Label(ctrl, text="模板:").pack(side=tk.LEFT, padx=(10,0))
+        self.sd_template = ttk.Combobox(ctrl, state='readonly', width=14)
+        self.sd_template.pack(side=tk.LEFT, padx=3)
         self.sd_template.bind('<<ComboboxSelected>>', self._on_template_select)
 
-        ttk.Label(left, text="间隔(秒):").pack(anchor='w', pady=(5,0))
-        self.sd_delay = ttk.Entry(left, width=10)
+        ttk.Label(ctrl, text="间隔(秒):").pack(side=tk.LEFT, padx=(10,0))
+        self.sd_delay = ttk.Entry(ctrl, width=5)
         self.sd_delay.insert(0, '3')
-        self.sd_delay.pack(pady=2)
+        self.sd_delay.pack(side=tk.LEFT, padx=3)
 
-        ttk.Label(left, text="消息内容 ({username} {first_name} 可用):").pack(anchor='w', pady=(5,0))
-        self.sd_message = tk.Text(left, height=5, width=30, font=('Microsoft YaHei', 10))
-        self.sd_message.pack(pady=2, fill=tk.X)
+        ttk.Label(ctrl, text="消息:").pack(side=tk.LEFT, padx=(10,0))
+        self.sd_message = tk.Text(ctrl, height=3, width=40, font=('Microsoft YaHei', 10))
+        self.sd_message.pack(side=tk.LEFT, padx=3, fill=tk.X, expand=True)
 
         # Loop controls
-        loop_frame = ttk.LabelFrame(left, text="循环发送", padding=3)
-        loop_frame.pack(fill=tk.X, pady=3)
+        loop = ttk.Frame(ctrl)
+        loop.pack(side=tk.LEFT, padx=5)
         self.sd_loop_enabled = tk.BooleanVar(value=False)
-        ttk.Checkbutton(loop_frame, text="启用循环", variable=self.sd_loop_enabled).pack(anchor='w')
-        row1 = ttk.Frame(loop_frame)
-        row1.pack(fill=tk.X)
-        ttk.Label(row1, text="轮数:").pack(side=tk.LEFT)
-        self.sd_loop_count = ttk.Entry(row1, width=6)
+        ttk.Checkbutton(loop, text="循环", variable=self.sd_loop_enabled).pack(side=tk.LEFT)
+        self.sd_loop_count = ttk.Entry(loop, width=4)
         self.sd_loop_count.insert(0, '3')
-        self.sd_loop_count.pack(side=tk.LEFT, padx=3)
-        ttk.Label(row1, text="轮间隔(秒):").pack(side=tk.LEFT)
-        self.sd_loop_delay = ttk.Entry(row1, width=6)
+        self.sd_loop_count.pack(side=tk.LEFT, padx=1)
+        ttk.Label(loop, text="轮").pack(side=tk.LEFT)
+        ttk.Label(loop, text="间隔").pack(side=tk.LEFT)
+        self.sd_loop_delay = ttk.Entry(loop, width=5)
         self.sd_loop_delay.insert(0, '60')
-        self.sd_loop_delay.pack(side=tk.LEFT, padx=3)
+        self.sd_loop_delay.pack(side=tk.LEFT, padx=1)
 
-        ttk.Button(left, text="发送给已选成员", command=self._start_send).pack(pady=5)
-        ttk.Label(left, text="点击列表中的行来选择成员").pack()
+        self.sd_progress = ttk.Label(ctrl, text="", foreground="blue")
+        self.sd_progress.pack(side=tk.LEFT, padx=10)
 
-        self.sd_progress = ttk.Label(left, text="")
-        self.sd_progress.pack(pady=3)
+        # Bottom: two sections — 成员私信 | 群组广播
+        nb = ttk.Notebook(f)
+        nb.pack(fill=tk.BOTH, expand=True)
 
-        # Right: member list for picking
-        right = ttk.Frame(f)
-        right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
-
-        top = ttk.Frame(right)
-        top.pack(fill=tk.X)
-        ttk.Button(top, text="筛选已选成员用于发送", command=self._load_send_targets).pack(side=tk.LEFT)
-        self.sd_count_label = ttk.Label(top, text="选中: 0")
-        self.sd_count_label.pack(side=tk.RIGHT)
-
+        # ---- Sub-tab 1: 成员私信 ----
+        mf = ttk.Frame(nb, padding=5)
+        nb.add(mf, text="成员私信")
+        mtop = ttk.Frame(mf)
+        mtop.pack(fill=tk.X)
+        ttk.Button(mtop, text="加载成员列表", command=self._sdm_load).pack(side=tk.LEFT)
+        ttk.Button(mtop, text="发送给已选成员", command=self._start_send).pack(side=tk.LEFT, padx=5)
+        self.sdm_count = ttk.Label(mtop, text="选中: 0")
+        self.sdm_count.pack(side=tk.RIGHT)
         cols = ('☐', '用户名', '昵称', '来源群')
-        self.sd_tree = ttk.Treeview(right, columns=cols, show='headings', selectmode='extended')
+        self.sd_tree = ttk.Treeview(mf, columns=cols, show='headings', selectmode='extended')
         self.sd_tree.heading('☐', text='☐'); self.sd_tree.column('☐', width=30, anchor='center')
         self.sd_tree.heading('用户名', text='用户名'); self.sd_tree.column('用户名', width=150)
         self.sd_tree.heading('昵称', text='昵称'); self.sd_tree.column('昵称', width=180)
         self.sd_tree.heading('来源群', text='来源群'); self.sd_tree.column('来源群', width=150)
         self.sd_tree.pack(fill=tk.BOTH, expand=True)
-        self.sd_tree.bind('<<TreeviewSelect>>', lambda e: self.sd_count_label.config(text=f"选中: {len(self.sd_tree.selection())}"))
+        self.sd_tree.bind('<<TreeviewSelect>>', lambda e: self.sdm_count.config(text=f"选中: {len(self.sd_tree.selection())}"))
+
+        # ---- Sub-tab 2: 群组广播 ----
+        gf = ttk.Frame(nb, padding=5)
+        nb.add(gf, text="群组广播")
+        gtop = ttk.Frame(gf)
+        gtop.pack(fill=tk.X)
+        ttk.Button(gtop, text="加载群组列表", command=self._sdg_load).pack(side=tk.LEFT)
+        ttk.Button(gtop, text="发给选中群组", command=self._start_group_send).pack(side=tk.LEFT, padx=5)
+        ttk.Button(gtop, text="发给所有群组", command=self._start_group_send_all).pack(side=tk.LEFT, padx=5)
+        self.sdg_count = ttk.Label(gtop, text="选中: 0")
+        self.sdg_count.pack(side=tk.RIGHT)
+        gcols = ('☐', '群名', 'Username', '人数')
+        self.sdg_tree = ttk.Treeview(gf, columns=gcols, show='headings', selectmode='extended')
+        self.sdg_tree.heading('☐', text='☐'); self.sdg_tree.column('☐', width=30, anchor='center')
+        self.sdg_tree.heading('群名', text='群名'); self.sdg_tree.column('群名', width=280)
+        self.sdg_tree.heading('Username', text='Username'); self.sdg_tree.column('Username', width=180)
+        self.sdg_tree.heading('人数', text='人数'); self.sdg_tree.column('人数', width=80, anchor='center')
+        self.sdg_tree.pack(fill=tk.BOTH, expand=True)
+        self.sdg_tree.bind('<<TreeviewSelect>>', lambda e: self.sdg_count.config(text=f"选中: {len(self.sdg_tree.selection())}"))
 
     def _on_template_select(self, event=None):
         tid = self.sd_template.get()
@@ -796,7 +814,7 @@ class App:
             self.sd_message.delete('1.0', tk.END)
             self.sd_message.insert('1.0', tpl['content'])
 
-    def _load_send_targets(self):
+    def _sdm_load(self):
         for item in self.sd_tree.get_children():
             self.sd_tree.delete(item)
         members = db_query("SELECT id, username, first_name, last_name, source_group_title FROM members ORDER BY created_at DESC LIMIT 10000")
@@ -804,17 +822,23 @@ class App:
         for m in members:
             self.sd_tree.insert('', 'end', iid=str(m['id']), values=('', m['username'] or '-', f"{m['first_name'] or ''} {m['last_name'] or ''}", m['source_group_title'] or ''))
 
+    def _sdg_load(self):
+        for item in self.sdg_tree.get_children():
+            self.sdg_tree.delete(item)
+        self._sd_groups = {}
+        for g in db_query("SELECT id, tg_id, title, username, access_hash FROM groups ORDER BY participants DESC LIMIT 5000"):
+            iid = str(g['id'])
+            self._sd_groups[iid] = g
+            self.sdg_tree.insert('', 'end', iid=iid, values=('', g['title'] or '(无)', g['username'] or '-', ''))
+
     def _start_send(self):
         phone = self.sd_phone.get()
         message = self.sd_message.get('1.0', tk.END).strip()
         delay = int(self.sd_delay.get() or 3)
         ids = [int(i) for i in self.sd_tree.selection()]
 
-        if not phone:
-            messagebox.showwarning("提示", "请选择账号")
-            return
-        if not message:
-            messagebox.showwarning("提示", "消息不能为空")
+        if not phone or not message:
+            messagebox.showwarning("提示", "请选择账号并填写消息")
             return
         if not ids:
             messagebox.showwarning("提示", "请选择目标成员")
@@ -828,22 +852,22 @@ class App:
         loop_count = int(self.sd_loop_count.get() or 1)
         loop_delay = int(self.sd_loop_delay.get() or 60)
 
-        self.set_status("正在群发...", "orange")
+        self.set_status("正在群发(成员)...", "orange")
         self.progress.start()
 
         def _do():
             total_success, total_fail = 0, 0
-            for round_num in range(loop_count):
-                if round_num > 0:
-                    self.root.after(0, lambda r=round_num: [
-                        self.sd_progress.config(text=f"等待 {loop_delay}s 后开始第 {r+1} 轮..."),
-                        self.log(f"[{phone}] 第 {r} 轮完成, 等待 {loop_delay}s...")
+            for rnd in range(loop_count):
+                if rnd > 0:
+                    self.root.after(0, lambda r=rnd: [
+                        self.sd_progress.config(text=f"等待{loop_delay}s 第{r+1}轮..."),
+                        self.log(f"[{phone}] 第{r}轮完成, 等{loop_delay}s...")
                     ])
                     time.sleep(loop_delay)
 
-                self.root.after(0, lambda r=round_num: self.log(f"[{phone}] === 第 {r+1}/{loop_count} 轮群发 ==="))
+                self.root.after(0, lambda r=rnd: self.log(f"[{phone}] === 第{r+1}/{loop_count}轮成员私信 ==="))
                 success, fail, errors = tg.send_bulk_messages(phone, targets, message, delay,
-                    progress_cb=lambda done, total, r=round_num: self.root.after(0,
+                    progress_cb=lambda done, total, r=rnd: self.root.after(0,
                         lambda: self.sd_progress.config(text=f"第{r+1}轮: {done}/{total}")))
 
                 total_success += success
@@ -852,20 +876,90 @@ class App:
                 if not loop_enabled:
                     break
 
-                if loop_count > 1 and round_num == loop_count - 1:
-                    break
-
-            final_msg = f"完成: 成功{total_success}, 失败{total_fail}"
-            if loop_count > 1:
-                final_msg += f" (共{loop_count}轮)"
+            final = f"完成: 成功{total_success}, 失败{total_fail}"
+            if loop_count > 1: final += f" ({loop_count}轮)"
             self.root.after(0, lambda: [
-                self.sd_progress.config(text=final_msg),
-                self.set_status("就绪", "gray"),
-                self.progress.stop(),
-                self.log(f"[{phone}] 群发完成: 成功{total_success} 失败{total_fail} (共{loop_count}轮)")
+                self.sd_progress.config(text=final),
+                self.set_status("就绪", "gray"), self.progress.stop(),
+                self.log(f"[{phone}] 成员私信完成: 成功{total_success} 失败{total_fail}")
             ])
 
         threading.Thread(target=_do, daemon=True).start()
+
+    def _send_to_groups(self, phone, groups, message, delay, loop_count, loop_delay):
+        """Common logic for group broadcast."""
+        def _do():
+            total_ok, total_fail = 0, 0
+            for rnd in range(loop_count):
+                if rnd > 0:
+                    self.root.after(0, lambda r=rnd: [
+                        self.sd_progress.config(text=f"等待{loop_delay}s 第{r+1}轮..."),
+                        self.log(f"[{phone}] 第{r}轮群组广播完成, 等{loop_delay}s...")
+                    ])
+                    time.sleep(loop_delay)
+
+                self.root.after(0, lambda r=rnd: self.log(f"[{phone}] === 第{r+1}/{loop_count}轮群组广播 ==="))
+                ok, fail = 0, 0
+                for i, g in enumerate(groups):
+                    try:
+                        ok += 1 if tg.send_message(phone, g['tg_id'], message, is_username=False) else 0
+                    except:
+                        fail += 1
+                    self.root.after(0, lambda c=i+1, t=len(groups): self.sd_progress.config(text=f"群组广播 {c}/{t}"))
+                    time.sleep(delay + random.uniform(0, delay * 0.3))
+                total_ok += ok
+                total_fail += fail
+                if not loop_enabled:
+                    break
+
+            final = f"群组广播完成: {total_ok}/{len(groups)*loop_count}"
+            self.root.after(0, lambda: [
+                self.sd_progress.config(text=final),
+                self.set_status("就绪", "gray"), self.progress.stop(),
+                self.log(f"[{phone}] {final}")
+            ])
+
+        self.set_status("正在群组广播...", "orange")
+        self.progress.start()
+        threading.Thread(target=_do, daemon=True).start()
+
+    def _start_group_send(self):
+        phone = self.sd_phone.get()
+        message = self.sd_message.get('1.0', tk.END).strip()
+        delay = int(self.sd_delay.get() or 3)
+        ids = self.sdg_tree.selection()
+
+        if not phone or not message:
+            messagebox.showwarning("提示", "请选择账号并填写消息")
+            return
+        if not ids:
+            messagebox.showwarning("提示", "请选择目标群组")
+            return
+
+        groups = [self._sd_groups[i] for i in ids if i in self._sd_groups]
+        if not groups: return
+
+        loop_count = int(self.sd_loop_count.get() or 1) if self.sd_loop_enabled.get() else 1
+        loop_delay = int(self.sd_loop_delay.get() or 60)
+        self._send_to_groups(phone, groups, message, delay, loop_count, loop_delay)
+
+    def _start_group_send_all(self):
+        phone = self.sd_phone.get()
+        message = self.sd_message.get('1.0', tk.END).strip()
+        delay = int(self.sd_delay.get() or 3)
+
+        if not phone or not message:
+            messagebox.showwarning("提示", "请选择账号并填写消息")
+            return
+
+        all_groups = list(self._sd_groups.values()) if hasattr(self, '_sd_groups') and self._sd_groups else []
+        if not all_groups:
+            messagebox.showwarning("提示", "请先加载群组列表")
+            return
+
+        loop_count = int(self.sd_loop_count.get() or 1) if self.sd_loop_enabled.get() else 1
+        loop_delay = int(self.sd_loop_delay.get() or 60)
+        self._send_to_groups(phone, all_groups, message, delay, loop_count, loop_delay)
 
     # ====================== Tab: 用户私信 ======================
     def _tab_dm(self):
