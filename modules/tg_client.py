@@ -240,49 +240,94 @@ class TGClientManager:
         return self._run_async(phone, _get) or []
 
     def get_participants(self, phone, group_id, access_hash='', limit=5000):
-        """Get members from a group. Falls back to chat history if member list is hidden."""
+        """Get members from a group. Uses official API first, then paginates through chat history."""
         async def _get(client):
             await client.connect()
             entity = await client.get_entity(int(group_id))
             all_users = []
+            seen = set()
 
-            # Try official method first
+            # Step 1: Try official API first
+            official_count = 0
             try:
                 participants = await client.get_participants(entity, limit=limit)
                 for p in participants:
+                    if p.bot:
+                        continue
+                    seen.add(p.id)
                     all_users.append({
                         'user_id': p.id,
                         'username': p.username or '',
                         'first_name': p.first_name or '',
                         'last_name': p.last_name or '',
                         'phone': p.phone or '',
-                        'is_bot': p.bot,
+                        'is_bot': False,
                     })
-                self.log(f"[{phone}] 获取到 {len(all_users)} 个成员 (官方API)")
+                official_count = len(all_users)
+                self.log(f"[{phone}] 官方API获取到 {official_count} 人")
             except ChatAdminRequiredError:
-                self.log(f"[{phone}] 官方API受限, 从聊天记录提取成员...")
-                # Extract from recent messages
-                seen = set()
-                messages = await client.get_messages(entity, limit=3000)
+                self.log(f"[{phone}] 官方API受限, 改用聊天记录逐页扫描...")
+            except Exception as e:
+                self.log(f"[{phone}] 官方API异常: {e}, 改用聊天记录扫描...")
+
+            # Step 2: If official API got enough, return
+            if official_count >= 100:
+                await client.disconnect()
+                return all_users
+
+            # Step 3: Paginate through message history
+            offset_id = 0
+            batch_size = 200
+            max_messages = 30000  # scan up to 30k messages
+            total_scanned = 0
+            empty_batches = 0
+
+            while len(all_users) < limit and total_scanned < max_messages and empty_batches < 3:
+                try:
+                    if offset_id:
+                        messages = await client.get_messages(entity, limit=batch_size, offset_id=offset_id)
+                    else:
+                        messages = await client.get_messages(entity, limit=batch_size)
+                except Exception as e:
+                    self.log(f"[{phone}] 拉取消息失败 @ offset={offset_id}: {e}")
+                    break
+
+                if not messages or len(messages) == 0:
+                    empty_batches += 1
+                    continue
+
+                empty_batches = 0
+                total_scanned += len(messages)
+
                 for msg in messages:
                     if msg.sender_id and msg.sender_id not in seen:
                         seen.add(msg.sender_id)
                         sender = msg.sender
-                        if sender:
+                        if sender and not getattr(sender, 'bot', False):
                             all_users.append({
                                 'user_id': sender.id,
                                 'username': sender.username or '',
                                 'first_name': sender.first_name or '',
                                 'last_name': sender.last_name or '',
                                 'phone': getattr(sender, 'phone', '') or '',
-                                'is_bot': sender.bot,
+                                'is_bot': False,
                             })
-                self.log(f"[{phone}] 从历史消息提取到 {len(all_users)} 个成员")
 
+                offset_id = messages[-1].id
+                if total_scanned % 2000 == 0 or len(messages) < batch_size:
+                    self.log(f"[{phone}] 已扫描 {total_scanned} 条消息, 收集 {len(all_users)} 人...")
+
+                # Small delay to avoid flood
+                await asyncio.sleep(0.3)
+
+                if len(messages) < batch_size:
+                    break
+
+            self.log(f"[{phone}] 扫描完成: {total_scanned} 条消息 → {len(all_users)} 人")
             await client.disconnect()
             return all_users
 
-        return self._run_async(phone, _get, timeout=300) or []
+        return self._run_async(phone, _get, timeout=600) or []
 
     def send_message(self, phone, target, message, is_username=False):
         """Send a message to a user/group. target = @username or user_id."""
