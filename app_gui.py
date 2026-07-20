@@ -192,6 +192,8 @@ class App:
         self._tab_verify()
         self._tab_profile()
 
+        self.nb.bind('<<NotebookTabChanged>>', self._on_tab_changed)
+
         # Bottom log
         log_frame = ttk.LabelFrame(self.root, text="日志", padding=3)
         log_frame.pack(fill=tk.BOTH, padx=5, pady=(0,2))
@@ -202,6 +204,22 @@ class App:
         # Bottom status bar
         self.progress = ttk.Progressbar(self.root, mode='indeterminate')
         self.progress.pack(fill=tk.X, padx=5, pady=(0,3))
+
+    def _on_tab_changed(self, event):
+        tab_id = self.nb.index(self.nb.select())
+        tab_text = self.nb.tab(tab_id, "text")
+
+        if tab_text == "成员采集":
+            phone = self.ms_phone.get()
+            if phone:
+                self._fill_ms_groups()
+        elif tab_text == "消息群发":
+            pass  # targets require explicit button click
+        elif tab_text == "用户私信":
+            pass  # members require explicit button click
+        elif tab_text == "群组拉人":
+            # refresh group dropdowns and member list
+            self._fill_combos()
 
     def _process_logs(self):
         while not log_queue.empty():
@@ -254,6 +272,7 @@ class App:
                 a['daily_limit'], a['sent_today'],
                 a['first_name'] or '-'
             ))
+        self._fill_combos()
 
     def _add_account_dialog(self):
         dlg = tk.Toplevel(self.root)
@@ -422,7 +441,9 @@ class App:
             self.root.after(0, lambda: [
                 self.gs_label.config(text=f"完成: 扫描 {len(dialogs)} 个对话, 新增 {added} 个群组"),
                 self.set_status("就绪", "gray"),
-                self.progress.stop()
+                self.progress.stop(),
+                self._fill_combos(),
+                self._load_groups()
             ])
             self.log(f"[{phone}] 群组采集完成: 新增 {added}")
 
@@ -736,8 +757,24 @@ class App:
         self.sd_delay.pack(pady=2)
 
         ttk.Label(left, text="消息内容 ({username} {first_name} 可用):").pack(anchor='w', pady=(5,0))
-        self.sd_message = tk.Text(left, height=6, width=30, font=('Microsoft YaHei', 10))
+        self.sd_message = tk.Text(left, height=5, width=30, font=('Microsoft YaHei', 10))
         self.sd_message.pack(pady=2, fill=tk.X)
+
+        # Loop controls
+        loop_frame = ttk.LabelFrame(left, text="循环发送", padding=3)
+        loop_frame.pack(fill=tk.X, pady=3)
+        self.sd_loop_enabled = tk.BooleanVar(value=False)
+        ttk.Checkbutton(loop_frame, text="启用循环", variable=self.sd_loop_enabled).pack(anchor='w')
+        row1 = ttk.Frame(loop_frame)
+        row1.pack(fill=tk.X)
+        ttk.Label(row1, text="轮数:").pack(side=tk.LEFT)
+        self.sd_loop_count = ttk.Entry(row1, width=6)
+        self.sd_loop_count.insert(0, '3')
+        self.sd_loop_count.pack(side=tk.LEFT, padx=3)
+        ttk.Label(row1, text="轮间隔(秒):").pack(side=tk.LEFT)
+        self.sd_loop_delay = ttk.Entry(row1, width=6)
+        self.sd_loop_delay.insert(0, '60')
+        self.sd_loop_delay.pack(side=tk.LEFT, padx=3)
 
         ttk.Button(left, text="发送给已选成员", command=self._start_send).pack(pady=5)
         ttk.Label(left, text="点击列表中的行来选择成员").pack()
@@ -800,17 +837,45 @@ class App:
         if not targets:
             return
 
+        loop_enabled = self.sd_loop_enabled.get()
+        loop_count = int(self.sd_loop_count.get() or 1)
+        loop_delay = int(self.sd_loop_delay.get() or 60)
+
         self.set_status("正在群发...", "orange")
         self.progress.start()
 
         def _do():
-            success, fail, errors = tg.send_bulk_messages(phone, targets, message, delay,
-                progress_cb=lambda done, total: self.root.after(0, lambda: self.sd_progress.config(text=f"{done}/{total}")))
+            total_success, total_fail = 0, 0
+            for round_num in range(loop_count):
+                if round_num > 0:
+                    self.root.after(0, lambda r=round_num: [
+                        self.sd_progress.config(text=f"等待 {loop_delay}s 后开始第 {r+1} 轮..."),
+                        self.log(f"[{phone}] 第 {r} 轮完成, 等待 {loop_delay}s...")
+                    ])
+                    time.sleep(loop_delay)
+
+                self.root.after(0, lambda r=round_num: self.log(f"[{phone}] === 第 {r+1}/{loop_count} 轮群发 ==="))
+                success, fail, errors = tg.send_bulk_messages(phone, targets, message, delay,
+                    progress_cb=lambda done, total, r=round_num: self.root.after(0,
+                        lambda: self.sd_progress.config(text=f"第{r+1}轮: {done}/{total}")))
+
+                total_success += success
+                total_fail += fail
+
+                if not loop_enabled:
+                    break
+
+                if loop_count > 1 and round_num == loop_count - 1:
+                    break
+
+            final_msg = f"完成: 成功{total_success}, 失败{total_fail}"
+            if loop_count > 1:
+                final_msg += f" (共{loop_count}轮)"
             self.root.after(0, lambda: [
-                self.sd_progress.config(text=f"完成: 成功{success}, 失败{fail}"),
+                self.sd_progress.config(text=final_msg),
                 self.set_status("就绪", "gray"),
                 self.progress.stop(),
-                self.log(f"[{phone}] 群发完成: 成功{success} 失败{fail}")
+                self.log(f"[{phone}] 群发完成: 成功{total_success} 失败{total_fail} (共{loop_count}轮)")
             ])
 
         threading.Thread(target=_do, daemon=True).start()
@@ -1374,6 +1439,12 @@ class App:
             self.iv_group['values'] = [f"{g['tg_id']}|{g['title']}" for g in groups]
         if hasattr(self, 'iv_filter'):
             self.iv_filter['values'] = [f"{g['tg_id']}|{g['title']}" for g in groups]
+
+        # Fill ms_group (成员采集) if phone is selected
+        if hasattr(self, 'ms_phone'):
+            ms_phone = self.ms_phone.get()
+            if ms_phone:
+                self._fill_ms_groups()
 
         # Fill templates
         tpls = db_query("SELECT id, name FROM message_templates ORDER BY created_at DESC")
