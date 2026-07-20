@@ -97,17 +97,14 @@ class TGClientManager:
                     self.status[phone] = 'online'
                     me = loop.run_until_complete(client.get_me())
                     self.log(f"[{phone}] 已登录: {get_display_name(me)}")
-                    # Persist session string
                     ss = StringSession.save(client.session)
                     self.sessions[phone] = ss
-                    loop.run_until_complete(client.disconnect())
                 else:
                     self.status[phone] = 'offline'
-                    self.log(f"[{phone}] 等待验证码登录")
+                    self.log(f"[{phone}] 已连接, 等待验证码登录")
             except Exception as e:
                 self.status[phone] = 'offline'
                 self.log(f"[{phone}] 连接失败: {e}")
-                loop.run_until_complete(client.disconnect())
 
             loop.run_forever()
 
@@ -118,13 +115,21 @@ class TGClientManager:
 
     def send_code(self, phone):
         """Request login code. Returns phone_code_hash or None."""
+        # Wait for client to be ready (up to 5 seconds)
+        for _ in range(25):
+            if phone in self.clients and phone in self.loops:
+                break
+            time.sleep(0.2)
+
         client = self.clients.get(phone)
         loop = self.loops.get(phone)
         if not client or not loop:
+            self.log(f"[{phone}] 客户端未初始化")
             return None
 
         async def _send():
-            await client.connect()
+            if not client.is_connected():
+                await client.connect()
             if await client.is_user_authorized():
                 return {'authorized': True}
             result = await client.send_code_request(phone)
