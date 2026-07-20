@@ -206,19 +206,9 @@ class App:
         self.progress.pack(fill=tk.X, padx=5, pady=(0,3))
 
     def _on_tab_changed(self, event):
-        tab_id = self.nb.index(self.nb.select())
-        tab_text = self.nb.tab(tab_id, "text")
-
-        if tab_text == "成员采集":
-            phone = self.ms_phone.get()
-            if phone:
-                self._fill_ms_groups()
-        elif tab_text == "消息群发":
-            pass  # targets require explicit button click
-        elif tab_text == "用户私信":
-            pass  # members require explicit button click
-        elif tab_text == "群组拉人":
-            # refresh group dropdowns and member list
+        tab_text = self.nb.tab(self.nb.index(self.nb.select()), "text")
+        tabs_to_refresh = {"成员采集", "消息群发", "用户私信", "群组拉人", "自动回复", "私信监听"}
+        if tab_text in tabs_to_refresh:
             self._fill_combos()
 
     def _process_logs(self):
@@ -665,12 +655,9 @@ class App:
         self.mb_tree.pack(fill=tk.BOTH, expand=True)
 
     def _fill_ms_groups(self, event=None):
-        phone = self.ms_phone.get()
-        self.ms_group['values'] = []
-        if phone:
-            groups = db_query("SELECT tg_id, title, access_hash FROM groups WHERE account_phone=?", (phone,))
-            self._ms_groups_cache = {f"{g['tg_id']}|{g['title']}": g for g in groups}
-            self.ms_group['values'] = list(self._ms_groups_cache.keys())
+        groups = db_query("SELECT tg_id, title, access_hash FROM groups ORDER BY participants DESC")
+        self._ms_groups_cache = {f"{g['tg_id']}|{g['title']}": g for g in groups}
+        self.ms_group['values'] = list(self._ms_groups_cache.keys())
 
     def _scrape_members(self):
         phone = self.ms_phone.get()
@@ -1440,11 +1427,9 @@ class App:
         if hasattr(self, 'iv_filter'):
             self.iv_filter['values'] = [f"{g['tg_id']}|{g['title']}" for g in groups]
 
-        # Fill ms_group (成员采集) if phone is selected
-        if hasattr(self, 'ms_phone'):
-            ms_phone = self.ms_phone.get()
-            if ms_phone:
-                self._fill_ms_groups()
+        # Fill ms_group (成员采集) — always show all groups
+        if hasattr(self, 'ms_group'):
+            self._fill_ms_groups()
 
         # Fill templates
         tpls = db_query("SELECT id, name FROM message_templates ORDER BY created_at DESC")
